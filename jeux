@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Crash Aviator - Version Améliorée avec Timer</title>
+  <style>
+    :root {
+      --primary: #4caf50;
+      --secondary: #ffd700;
+      --danger: #ff4444;
+      --bg-dark: #0d1b38;
+      --bg-light: rgba(255,255,255,0.1);
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, var(--bg-dark), #1e3c72);
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    #container {
+      max-width: 1200px;
+      margin: 20px auto;
+      background: var(--bg-light);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.5em;
+      margin: 0 0 20px;
+      text-shadow: 0 2px 10px var(--secondary);
+    }
+
+    #info {
+      text-align: center;
+      padding: 15px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    #multiplier {
+      font-size: 3.5em;
+      font-weight: 700;
+      color: var(--secondary);
+      transition: transform 0.2s;
+    }
+
+    #multiplier.crashed {
+      color: var(--danger);
+      transform: scale(1.1);
+    }
+
+    #status {
+      font-size: 1.2em;
+      opacity: 0.9;
+    }
+
+    #timer {
+      font-size: 1.5em;
+      color: var(--primary);
+      margin-top: 10px;
+      font-weight: 600;
+    }
+
+    #game-area {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 25px;
+      margin-bottom: 25px;
+    }
+
+    #canvas {
+      position: relative;
+      height: 400px;
+      border-radius: 15px;
+      overflow: hidden;
+      background: #0a0e1a;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .layer {
+      position: absolute;
+      width: 2400px;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    #stars {
+      z-index: 1;
+      animation: moveStars 40s linear infinite;
+    }
+
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: #fff;
+      border-radius: 50%;
+      animation: twinkle 2s infinite alternate;
+      box-shadow: 0 0 4px rgba(255,255,255,0.6);
+    }
+
+    @keyframes twinkle {
+      0% { opacity: 0.9; transform: scale(1); }
+      100% { opacity: 0.4; transform: scale(1.2); }
+    }
+
+    @keyframes moveStars {
+      from { transform: translateX(0); }
+      to { transform: translateX(-1200px); }
+    }
+
+    #mountains {
+      z-index: 2;
+      background: linear-gradient(to top, #1f2633 0%, #3a4355 100%);
+      clip-path: polygon(0% 70%, 15% 55%, 30% 75%, 45% 50%, 60% 65%, 75% 45%, 90% 60%, 100% 50%, 100% 100%, 0% 100%);
+      animation: moveMountains 30s linear infinite;
+    }
+
+    @keyframes moveMountains {
+      from { transform: translateX(0); }
+      to { transform: translateX(-600px); }
+    }
+
+    #ground {
+      z-index: 3;
+      background: linear-gradient(to top, #151820, #1f252e);
+      clip-path: polygon(0% 80%, 20% 85%, 40% 75%, 60% 80%, 80% 70%, 100% 78%, 100% 100%, 0% 100%);
+      animation: moveGround 10s linear infinite;
+    }
+
+    @keyframes moveGround {
+      from { transform: translateX(0); }
+      to { transform: translateX(-480px); }
+    }
+
+    #plane {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 40px;
+      transition: all 0.1s ease-out;
+      z-index: 4;
+    }
+
+    #plane.crashed {
+      filter: brightness(0.5) saturate(2);
+      transform: translateX(-50%) rotate(45deg);
+    }
+
+    #plane::before {
+      content: "";
+      position: absolute;
+      width: 80px;
+      height: 30px;
+      background: linear-gradient(45deg, #ff3333, #ff6666);
+      border-radius: 8px;
+      transform: skewX(-25deg);
+      box-shadow: 0 0 15px rgba(255,0,0,0.7);
+    }
+
+    #plane::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 25px;
+      top: -20px;
+      left: 35px;
+      background: linear-gradient(45deg, #ffaa33, #ffcc66);
+      clip-path: polygon(0 100%, 50% 0, 100% 100%);
+      box-shadow: 0 0 10px rgba(255,165,0,0.7);
+    }
+
+    #bets {
+      background: rgba(0,0,0,0.25);
+      border-radius: 15px;
+      padding: 15px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 8px;
+    }
+
+    th {
+      padding: 10px;
+      background: rgba(255,255,255,0.1);
+      text-transform: uppercase;
+      font-size: 0.9em;
+    }
+
+    td {
+      padding: 10px;
+      background: rgba(255,255,255,0.05);
+    }
+
+    #controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 15px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 15px;
+    }
+
+    .bet-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 10px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+    }
+
+    label {
+      font-size: 0.9em;
+      opacity: 0.9;
+    }
+
+    input[type="number"] {
+      width: 80px;
+      padding: 8px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.4);
+      color: #fff;
+      font-size: 1em;
+      transition: all 0.2s;
+    }
+
+    input[type="number"]:focus {
+      outline: none;
+      background: rgba(0,0,0,0.6);
+      box-shadow: 0 0 8px var(--primary);
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 25px;
+      background: linear-gradient(45deg, var(--primary), #66bb6a);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+    }
+
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    button.cashout {
+      background: linear-gradient(45deg, #ff9800, #ffb300);
+    }
+
+    @media (max-width: 768px) {
+      #game-area {
+        grid-template-columns: 1fr;
+      }
+      #canvas {
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="container">
+  <h1>Crash Aviator</h1>
+  <div id="info">
+    <div id="multiplier">1.00x</div>
+    <div id="status">Préparation…</div>
+    <div id="timer"></div>
+  </div>
+
+  <div id="game-area">
+    <div id="canvas">
+      <div id="stars" class="layer"></div>
+      <div id="mountains" class="layer"></div>
+      <div id="ground" class="layer"></div>
+      <div id="plane"></div>
+    </div>
+
+    <div id="bets">
+      <h3>Paris Actifs</h3>
+      <table>
+        <thead>
+          <tr><th>Joueur</th><th>Mise (€)</th><th>Gains</th></tr>
+        </thead>
+        <tbody id="bets-list"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="controls">
+    <div class="bet-row">
+      <label>Mise 1 (€)</label>
+      <input type="number" id="bet1" min="0" step="0.1" value="10">
+      <label>Auto (x)</label>
+      <input type="number" id="auto1" min="1" step="0.1" value="2">
+      <button id="bet1-btn">Parier</button>
+      <button id="cashout1-btn" class="cashout" disabled>Cash Out</button>
+    </div>
+    <div class="bet-row">
+      <label>Mise 2 (€)</label>
+      <input type="number" id="bet2" min="0" step="0.1" value="0">
+      <label>Auto (x)</label>
+      <input type="number" id="auto2" min="1" step="0.1" value="3">
+      <button id="bet2-btn">Parier</button>
+      <button id="cashout2-btn" class="cashout" disabled>Cash Out</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function getCrashPoint() {
+  const r = Math.random();
+  if (r < 0.10) return 1 + Math.random() * 0.10;
+  if (r < 0.60) return 1.1 + Math.random() * 2;
+  if (r < 0.85) return 3.1 + Math.random() * 5;
+  if (r < 0.95) return 8.1 + Math.random() * 10;
+  return 18.1 + Math.random() * 50;
+}
+
+const WAIT_DURATION = 10000; // 10s d'attente
+const TICK_INTERVAL = 200;    // Mise à jour toutes les 200ms pour plus de contrôle
+
+let currentPhase = "WAITING";
+let multiplier = 1;
+let crashed = false;
+let crashVal = 0;
+let balance = 1000;
+let waitStartTime;
+let flyInterval = null;
+
+let bet1 = 0, auto1 = 2, bet1Active = false;
+let bet2 = 0, auto2 = 3, bet2Active = false;
+let bets = [];
+
+const multiplierEl = document.getElementById("multiplier");
+const statusEl = document.getElementById("status");
+const timerEl = document.getElementById("timer");
+const planeEl = document.getElementById("plane");
+const betsListEl = document.getElementById("bets-list");
+
+const bet1El = document.getElementById("bet1");
+const auto1El = document.getElementById("auto1");
+const bet1Btn = document.getElementById("bet1-btn");
+const cashout1Btn = document.getElementById("cashout1-btn");
+
+const bet2El = document.getElementById("bet2");
+const auto2El = document.getElementById("auto2");
+const bet2Btn = document.getElementById("bet2-btn");
+const cashout2Btn = document.getElementById("cashout2-btn");
+
+function updateBetsTable() {
+  betsListEl.innerHTML = "";
+  bets.forEach(b => {
+    const tr = document.createElement("tr");
+    const gains = b.cashout === null ?
+      (b.active ? `${(multiplier * b.amount).toFixed(2)}€` : "-") :
+      b.cashout === 0 ? "Perdu" : `${(b.cashout * b.amount).toFixed(2)}€`;
+    tr.innerHTML = `<td>Joueur${b.id}</td><td>${b.amount.toFixed(2)}€</td><td>${gains}</td>`;
+    betsListEl.appendChild(tr);
+  });
+}
+
+function playSound(type) {
+  const audio = new Audio(type === 'crash' ?
+    'https://freesound.org/data/previews/66/66104_2390-lq.mp3' :
+    'https://freesound.org/data/previews/270/270156_1123476-lq.mp3');
+  audio.play();
+}
+
+bet1Btn.addEventListener("click", () => {
+  if (currentPhase !== "WAITING") return;
+  bet1 = parseFloat(bet1El.value) || 0;
+  auto1 = parseFloat(auto1El.value) || 2;
+  if (bet1 > balance) {
+    statusEl.textContent = "Solde insuffisant !";
+    return;
+  }
+  bet1Active = bet1 > 0;
+  statusEl.textContent = bet1Active ?
+    `Mise 1 placée : ${bet1}€ (Auto: ${auto1}x)` :
+    "Mise 1 annulée";
+});
+
+bet2Btn.addEventListener("click", () => {
+  if (currentPhase !== "WAITING") return;
+  bet2 = parseFloat(bet2El.value) || 0;
+  auto2 = parseFloat(auto2El.value) || 3;
+  if (bet2 > balance - bet1) {
+    statusEl.textContent = "Solde insuffisant !";
+    return;
+  }
+  bet2Active = bet2 > 0;
+  statusEl.textContent = bet2Active ?
+    `Mise 2 placée : ${bet2}€ (Auto: ${auto2}x)` :
+    "Mise 2 annulée";
+});
+
+function cashout(betId) {
+  if (currentPhase !== "FLYING" || crashed) return;
+  const bet = bets.find(x => x.id === betId);
+  if (bet && bet.cashout === null && bet.active) {
+    bet.cashout = multiplier;
+    bet.active = false;
+    balance += bet.amount * multiplier;
+    statusEl.textContent = `Joueur${betId} encaisse ${bet.amount * multiplier}€ à ${multiplier.toFixed(2)}x`;
+    updateBetsTable();
+    playSound('cashout');
+    if (betId === 1) {
+      bet1Active = false;
+      cashout1Btn.disabled = true;
+    } else {
+      bet2Active = false;
+      cashout2Btn.disabled = true;
+    }
+  }
+}
+
+cashout1Btn.addEventListener("click", () => cashout(1));
+cashout2Btn.addEventListener("click", () => cashout(2));
+
+function updateTimer() {
+  if (currentPhase === "WAITING") {
+    const elapsed = Date.now() - waitStartTime;
+    const remaining = Math.max(0, WAIT_DURATION - elapsed);
+    timerEl.textContent = `Décollage dans ${(remaining / 1000).toFixed(1)}s`;
+    if (remaining > 0) {
+      requestAnimationFrame(updateTimer);
+    }
+  } else {
+    timerEl.textContent = "";
+  }
+}
+
+function startWaitingPhase() {
+  currentPhase = "WAITING";
+  crashed = false;
+  multiplier = 1;
+  planeEl.classList.remove("crashed");
+  planeEl.style.bottom = "50px";
+  planeEl.style.transform = "translateX(-50%) rotate(0deg)";
+  multiplierEl.textContent = "1.00x";
+  multiplierEl.classList.remove("crashed");
+  statusEl.textContent = `Placez vos mises | Solde: ${balance.toFixed(2)}€`;
+
+  bet1Btn.disabled = false;
+  bet2Btn.disabled = false;
+  cashout1Btn.disabled = true;
+  cashout2Btn.disabled = true;
+
+  bets = [];
+  updateBetsTable();
+
+  waitStartTime = Date.now();
+  updateTimer();
+  setTimeout(startFlyingPhase, WAIT_DURATION);
+}
+
+function startFlyingPhase() {
+  currentPhase = "FLYING";
+  crashVal = getCrashPoint();
+  statusEl.textContent = "Décollage !";
+
+  if (bet1Active) bets.push({ id: 1, amount: bet1, cashout: null, active: true });
+  if (bet2Active) bets.push({ id: 2, amount: bet2, cashout: null, active: true });
+  balance -= (bet1Active ? bet1 : 0) + (bet2Active ? bet2 : 0);
+  updateBetsTable();
+
+  bet1Btn.disabled = true;
+  bet2Btn.disabled = true;
+  cashout1Btn.disabled = !bet1Active;
+  cashout2Btn.disabled = !bet2Active;
+
+  flyInterval = setInterval(tickFlying, TICK_INTERVAL);
+}
+
+function tickFlying() {
+  if (currentPhase !== "FLYING") return;
+
+  if (!crashed) {
+    // Progression encore plus lente du multiplicateur
+    multiplier += 0.005 + Math.random() * 0.01; // Entre 0.005x et 0.015x par tick (toutes les 200ms)
+    multiplierEl.textContent = `${multiplier.toFixed(2)}x`;
+
+    if (multiplier >= crashVal) {
+      crashed = true;
+      multiplier = crashVal;
+      planeEl.classList.add("crashed");
+      multiplierEl.classList.add("crashed");
+      statusEl.textContent = `CRASH à ${crashVal.toFixed(2)}x !`;
+      playSound('crash');
+      bets.forEach(b => {
+        if (b.cashout === null) b.cashout = 0;
+      });
+      updateBetsTable();
+      clearInterval(flyInterval);
+      setTimeout(startWaitingPhase, 5000);
+    } else {
+      if (bet1Active && multiplier >= auto1) cashout(1);
+      if (bet2Active && multiplier >= auto2) cashout(2);
+
+      const height = Math.min(50 + (multiplier * 10), 350);
+      const angle = Math.sin(Date.now() * 0.001) * 15;
+      planeEl.style.bottom = `${height}px`;
+      planeEl.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+      updateBetsTable();
+    }
+  }
+}
+
+window.addEventListener("load", () => {
+  const starsDiv = document.getElementById("stars");
+  for (let i = 0; i < 100; i++) {
+    const star = document.createElement("div");
+    star.className = "star";
+    star.style.left = `${Math.random() * 2400}px`;
+    star.style.top = `${Math.random() * 400}px`;
+    star.style.animationDelay = `${Math.random() * 2}s`;
+    starsDiv.appendChild(star);
+  }
+  startWaitingPhase();
+});
+</script>
+</body>
+</html>
